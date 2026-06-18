@@ -1,0 +1,428 @@
+// ============================================================
+// LENDING CLUB — DAX MEASURES LIBRARY
+// Power BI Credit Risk & Campaign Analytics Dashboard
+// Author: Hiral Sarkar
+//
+// HOW TO USE:
+// 1. In Power BI Desktop → open the DAX Query View or Measure editor
+// 2. Create a dedicated "Measures" table (blank table recommended)
+// 3. Paste each measure block into the formula bar
+// 4. Organise measures into Display Folders matching section names below
+// ============================================================
+
+
+// ============================================================
+// SECTION 1: CORE PORTFOLIO KPIS
+// ============================================================
+
+Total Loans =
+COUNTROWS(lending_club)
+
+Total Exposure =
+SUM(lending_club[loan_amnt])
+
+Total Funded Amount =
+SUM(lending_club[funded_amnt])
+
+Avg Loan Size =
+AVERAGE(lending_club[loan_amnt])
+
+Avg Interest Rate =
+AVERAGE(lending_club[int_rate])
+
+Avg DTI =
+AVERAGE(lending_club[dti])
+
+Avg FICO Score =
+AVERAGE(lending_club[fico_score])
+
+Total Installment Income =
+SUM(lending_club[installment])
+
+Total Payments Received =
+SUM(lending_club[total_pymnt])
+
+Net Interest Collected =
+SUM(lending_club[total_rec_int])
+
+
+// ============================================================
+// SECTION 2: DEFAULT & CHARGE-OFF METRICS
+// ============================================================
+
+Total Defaults =
+CALCULATE(
+    COUNTROWS(lending_club),
+    lending_club[is_default] = 1
+)
+
+Default Rate % =
+DIVIDE(
+    [Total Defaults],
+    [Total Loans],
+    0
+)
+
+Total Chargeoffs =
+CALCULATE(
+    COUNTROWS(lending_club),
+    lending_club[is_chargeoff] = 1
+)
+
+Chargeoff Rate % =
+DIVIDE(
+    [Total Chargeoffs],
+    [Total Loans],
+    0
+)
+
+Total Expected Loss =
+SUMX(
+    lending_club,
+    lending_club[el_proxy]
+)
+
+Avg LGD % =
+AVERAGE(lending_club[lgd_proxy])
+
+Avg Recovery Rate % =
+AVERAGE(lending_club[recovery_rate])
+
+Charged Off Exposure =
+CALCULATE(
+    SUM(lending_club[loan_amnt]),
+    lending_club[is_chargeoff] = 1
+)
+
+// Default rate formatted for card visual
+Default Rate Label =
+FORMAT([Default Rate %], "0.00%")
+
+// Chargeoff rate formatted for card visual
+Chargeoff Rate Label =
+FORMAT([Chargeoff Rate %], "0.00%")
+
+
+// ============================================================
+// SECTION 3: WATCHLIST & EARLY WARNING
+// ============================================================
+
+Watchlist Accounts =
+CALCULATE(
+    COUNTROWS(lending_club),
+    lending_club[watchlist_flag] = 1
+)
+
+Watchlist Rate % =
+DIVIDE(
+    [Watchlist Accounts],
+    [Total Loans],
+    0
+)
+
+Watchlist Exposure =
+CALCULATE(
+    SUM(lending_club[loan_amnt]),
+    lending_club[watchlist_flag] = 1
+)
+
+High Risk Accounts =
+CALCULATE(
+    COUNTROWS(lending_club),
+    lending_club[grade] IN {"D", "E", "F", "G"}
+)
+
+High Risk Exposure =
+CALCULATE(
+    SUM(lending_club[loan_amnt]),
+    lending_club[grade] IN {"D", "E", "F", "G"}
+)
+
+Delinquent Accounts =
+CALCULATE(
+    COUNTROWS(lending_club),
+    lending_club[delinq_2yrs] > 0
+)
+
+Delinquency Rate % =
+DIVIDE(
+    [Delinquent Accounts],
+    [Total Loans],
+    0
+)
+
+
+// ============================================================
+// SECTION 4: RISK-ADJUSTED METRICS
+// ============================================================
+
+Risk-Adjusted Return =
+DIVIDE(
+    [Net Interest Collected] - [Total Expected Loss],
+    [Total Funded Amount],
+    0
+)
+
+Loss Coverage Ratio =
+DIVIDE(
+    [Total Payments Received],
+    [Charged Off Exposure] + 1,
+    0
+)
+
+Portfolio at Risk (PAR) =
+DIVIDE(
+    CALCULATE(
+        SUM(lending_club[loan_amnt]),
+        lending_club[loan_status] IN {
+            "Late (16-30 days)",
+            "Late (31-120 days)",
+            "Default",
+            "Charged Off"
+        }
+    ),
+    [Total Exposure],
+    0
+)
+
+Stress Default Rate (Severe) =
+// Calibrated to RBI FSR COVID severe scenario benchmark (~12% system default)
+[Default Rate %] * 1.5
+
+Stress Expected Loss (Severe) =
+[Total Expected Loss] * 1.5
+
+
+// ============================================================
+// SECTION 5: CAMPAIGN ANALYTICS METRICS
+// ============================================================
+
+Campaign Responders =
+CALCULATE(
+    COUNTROWS(lending_club),
+    lending_club[campaign_response] = 1
+)
+
+Campaign Response Rate % =
+DIVIDE(
+    [Campaign Responders],
+    [Total Loans],
+    0
+)
+
+High Value Customers =
+CALCULATE(
+    COUNTROWS(lending_club),
+    lending_club[high_value_customer] = 1
+)
+
+High Value Rate % =
+DIVIDE(
+    [High Value Customers],
+    [Total Loans],
+    0
+)
+
+Prime Segment Share % =
+DIVIDE(
+    CALCULATE(
+        COUNTROWS(lending_club),
+        lending_club[risk_segment] = "Prime"
+    ),
+    [Total Loans],
+    0
+)
+
+Near-Prime Segment Share % =
+DIVIDE(
+    CALCULATE(
+        COUNTROWS(lending_club),
+        lending_club[risk_segment] = "Near-Prime"
+    ),
+    [Total Loans],
+    0
+)
+
+Subprime Segment Share % =
+DIVIDE(
+    CALCULATE(
+        COUNTROWS(lending_club),
+        lending_club[risk_segment] IN {"Subprime", "Deep Subprime"}
+    ),
+    [Total Loans],
+    0
+)
+
+
+// ============================================================
+// SECTION 6: PERIOD-OVER-PERIOD COMPARISONS
+// ============================================================
+
+// Requires a Date table linked to issue_d
+
+Loans YTD =
+CALCULATE(
+    [Total Loans],
+    DATESYTD('DateTable'[Date])
+)
+
+Exposure YTD =
+CALCULATE(
+    [Total Exposure],
+    DATESYTD('DateTable'[Date])
+)
+
+Defaults YTD =
+CALCULATE(
+    [Total Defaults],
+    DATESYTD('DateTable'[Date])
+)
+
+Loans MoM Change % =
+VAR CurrentMonth = [Total Loans]
+VAR PriorMonth =
+    CALCULATE(
+        [Total Loans],
+        DATEADD('DateTable'[Date], -1, MONTH)
+    )
+RETURN
+    DIVIDE(CurrentMonth - PriorMonth, PriorMonth, BLANK())
+
+Default Rate MoM Change % =
+VAR CurrentRate = [Default Rate %]
+VAR PriorRate =
+    CALCULATE(
+        [Default Rate %],
+        DATEADD('DateTable'[Date], -1, MONTH)
+    )
+RETURN
+    CurrentRate - PriorRate
+
+Loans 3M Rolling Avg =
+CALCULATE(
+    [Total Loans],
+    DATESINPERIOD('DateTable'[Date], LASTDATE('DateTable'[Date]), -3, MONTH)
+)
+
+
+// ============================================================
+// SECTION 7: DYNAMIC RANKING & SCORING
+// ============================================================
+
+Grade Risk Rank =
+RANKX(
+    ALL(lending_club[grade]),
+    [Default Rate %],
+    ,
+    DESC,
+    DENSE
+)
+
+State Default Rank =
+RANKX(
+    ALL(lending_club[addr_state]),
+    [Default Rate %],
+    ,
+    DESC,
+    DENSE
+)
+
+Segment Performance Score =
+// Higher = better segment (low default, high response, high fico)
+VAR DefaultScore   = 1 - [Default Rate %]          // higher is better
+VAR ResponseScore  = [Campaign Response Rate %]
+VAR FICOScore      = DIVIDE([Avg FICO Score], 850, 0)
+RETURN
+    (DefaultScore * 0.5) + (ResponseScore * 0.3) + (FICOScore * 0.2)
+
+
+// ============================================================
+// SECTION 8: CONDITIONAL KPI INDICATORS (for KPI cards)
+// ============================================================
+
+Default Rate Status =
+SWITCH(
+    TRUE(),
+    [Default Rate %] < 0.05,   "✅ Low Risk",
+    [Default Rate %] < 0.10,   "⚠️ Moderate Risk",
+    [Default Rate %] < 0.15,   "🔶 Elevated Risk",
+    "🔴 High Risk"
+)
+
+Watchlist Status =
+SWITCH(
+    TRUE(),
+    [Watchlist Rate %] < 0.10, "✅ Normal",
+    [Watchlist Rate %] < 0.20, "⚠️ Watch",
+    "🔴 Alert"
+)
+
+Portfolio Health Score =
+VAR D = [Default Rate %]
+VAR W = [Watchlist Rate %]
+VAR PAR = [Portfolio at Risk (PAR)]
+VAR Score = 100 - (D * 200) - (W * 50) - (PAR * 100)
+RETURN
+    MAX(0, MIN(100, Score))
+
+Portfolio Health Label =
+SWITCH(
+    TRUE(),
+    [Portfolio Health Score] >= 80, "Healthy",
+    [Portfolio Health Score] >= 60, "Moderate",
+    [Portfolio Health Score] >= 40, "Stressed",
+    "Critical"
+)
+
+
+// ============================================================
+// SECTION 9: TOOLTIP & DRILL-THROUGH MEASURES
+// ============================================================
+
+Selected Grade Default Rate =
+CALCULATE(
+    [Default Rate %],
+    ALLEXCEPT(lending_club, lending_club[grade])
+)
+
+Selected State Exposure =
+CALCULATE(
+    [Total Exposure],
+    ALLEXCEPT(lending_club, lending_club[addr_state])
+)
+
+Segment Tooltip Summary =
+VAR G = SELECTEDVALUE(lending_club[grade], "All")
+VAR DR = FORMAT([Default Rate %], "0.00%")
+VAR AVG_INT = FORMAT([Avg Interest Rate], "0.00%")
+VAR FICO = FORMAT([Avg FICO Score], "0")
+RETURN
+    "Grade: " & G &
+    " | Default: " & DR &
+    " | Int Rate: " & AVG_INT &
+    " | Avg FICO: " & FICO
+
+
+// ============================================================
+// SECTION 10: DATE TABLE (Create as a new Calculated Table)
+// ============================================================
+
+// Paste this as a NEW CALCULATED TABLE in Power BI (not a measure)
+// Table name: DateTable
+
+/*
+DateTable =
+ADDCOLUMNS(
+    CALENDAR(
+        DATE(2007, 1, 1),
+        DATE(2020, 12, 31)
+    ),
+    "Year",        YEAR([Date]),
+    "Month Num",   MONTH([Date]),
+    "Month Name",  FORMAT([Date], "MMM"),
+    "Quarter",     "Q" & QUARTER([Date]),
+    "Year-Month",  FORMAT([Date], "YYYY-MM"),
+    "Year-Quarter", YEAR([Date]) & " Q" & QUARTER([Date])
+)
+*/
+// After creating: link DateTable[Date] to lending_club[issue_d]
