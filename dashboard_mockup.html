@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lending Club — Credit Risk & Campaign Analytics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-geo-2.27.0.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:        #0b0e14;
+    --surface:   #111620;
+    --surface2:  #161d2b;
+    --border:    #1e2a3a;
+    --accent:    #00c8ff;
+    --accent2:   #ff6b35;
+    --accent3:   #7cfc91;
+    --danger:    #ff3b5c;
+    --warn:      #ffb020;
+    --text:      #e8edf5;
+    --muted:     #5a6a80;
+    --prime:     #00c8ff;
+    --nearprime: #7cfc91;
+    --subprime:  #ffb020;
+    --deep:      #ff3b5c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.5; transform:scale(1.3); }
+  }
+  .logo h1 { font-size: 15px; font-weight: 700; letter-spacing: .08em; color: var(--text); }
+  .logo span { font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  .header-right { display: flex; align-items: center; gap: 18px; }
+  .live-badge {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px; letter-spacing: .12em;
+    padding: 4px 10px; border-radius: 20px;
+    background: rgba(0,200,255,.1);
+    border: 1px solid rgba(0,200,255,.3);
+    color: var(--accent);
+  }
+  .header-stat { text-align: right; }
+  .header-stat .val { font-size: 14px; font-weight: 700; color: var(--accent); }
+  .header-stat .lbl { font-size: 10px; color: var(--muted); font-family: 'DM Mono',monospace; }
+
+  /* ── FILTER BAR ── */
+  .filter-bar {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    padding: 12px 28px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-bar label {
+    font-size: 10px; color: var(--muted);
+    font-family: 'Roboto Mono', monospace;
+    letter-spacing: .08em;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .filter-bar select, .filter-bar input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    min-width: 130px;
+  }
+  .filter-bar select:focus, .filter-bar input:focus {
+    border-color: var(--accent);
+  }
+  .reset-btn {
+    align-self: flex-end;
+    padding: 7px 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: .08em;
+    transition: all .2s;
+  }
+  .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── MAIN LAYOUT ── */
+  main { padding: 20px 28px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── KPI ROW ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 6px;
+    position: relative; overflow: hidden;
+    transition: transform .2s, border-color .2s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .kpi-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+  }
+  .kpi-card.blue::before   { background: var(--accent); }
+  .kpi-card.green::before  { background: var(--accent3); }
+  .kpi-card.orange::before { background: var(--warn); }
+  .kpi-card.red::before    { background: var(--danger); }
+  .kpi-card.cyan::before   { background: #00e5d4; }
+  .kpi-card.purple::before { background: #a78bfa; }
+
+  .kpi-label { font-family: 'Roboto Mono', monospace; font-size: 9px; color: var(--muted); letter-spacing: .1em; }
+  .kpi-value { font-size: 26px; font-weight: 800; line-height: 1; }
+  .kpi-card.blue   .kpi-value { color: var(--accent); }
+  .kpi-card.green  .kpi-value { color: var(--accent3); }
+  .kpi-card.orange .kpi-value { color: var(--warn); }
+  .kpi-card.red    .kpi-value { color: var(--danger); }
+  .kpi-card.cyan   .kpi-value { color: #00e5d4; }
+  .kpi-card.purple .kpi-value { color: #a78bfa; }
+
+  .kpi-sub { font-size: 10px; color: var(--muted); font-family: 'Roboto Mono', monospace; }
+  .kpi-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: 'Roboto Mono', monospace; font-size: 9px;
+    padding: 2px 7px; border-radius: 20px; width: fit-content;
+  }
+  .badge-ok  { background: rgba(124,252,145,.1); color: var(--accent3); }
+  .badge-warn{ background: rgba(255,176,32,.1);  color: var(--warn); }
+  .badge-bad { background: rgba(255,59,92,.1);   color: var(--danger); }
+
+  /* ── CHART GRID ── */
+  .chart-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .chart-row-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+  .chart-row-2b{ display: grid; grid-template-columns: 1fr 1.5fr; gap: 16px; }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .chart-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .chart-title {
+    font-size: 12px; font-weight: 700; letter-spacing: .04em;
+    color: var(--text);
+  }
+  .chart-subtitle {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 9px; color: var(--muted); margin-top: 2px;
+  }
+  .chart-tag {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 9px; letter-spacing: .08em;
+    padding: 3px 8px; border-radius: 4px;
+    background: rgba(0,200,255,.08);
+    border: 1px solid rgba(0,200,255,.2);
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  canvas { max-height: 220px; }
+
+  /* ── WATCHLIST TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-family: 'Roboto Mono', monospace; font-size: 11px;
+  }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th {
+    text-align: left; padding: 8px 10px;
+    color: var(--muted); font-size: 9px;
+    letter-spacing: .1em; font-weight: 500;
+  }
+  td { padding: 9px 10px; border-bottom: 1px solid rgba(30,42,58,.6); }
+  tbody tr:hover { background: var(--surface2); }
+  .grade-pill {
+    display: inline-block;
+    width: 22px; height: 22px; line-height: 22px;
+    text-align: center; border-radius: 50%;
+    font-size: 11px; font-weight: 700;
+  }
+  .g-A { background: rgba(0,200,255,.2);   color: var(--accent); }
+  .g-B { background: rgba(124,252,145,.2); color: var(--accent3); }
+  .g-C { background: rgba(255,176,32,.15); color: var(--warn); }
+  .g-D { background: rgba(255,107,53,.15); color: var(--accent2); }
+  .g-E { background: rgba(255,59,92,.2);   color: var(--danger); }
+  .g-F { background: rgba(255,59,92,.3);   color: var(--danger); }
+
+  .status-dot {
+    display: inline-block;
+    width: 7px; height: 7px; border-radius: 50%;
+    margin-right: 5px;
+  }
+  .dot-ok     { background: var(--accent3); }
+  .dot-warn   { background: var(--warn); }
+  .dot-alert  { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+  /* ── SEGMENT BARS ── */
+  .seg-row { display: flex; flex-direction: column; gap: 10px; }
+  .seg-item { display: flex; flex-direction: column; gap: 4px; }
+  .seg-label-row { display: flex; justify-content: space-between; align-items: center; }
+  .seg-name { font-size: 11px; font-weight: 600; }
+  .seg-pct  { font-family: 'Roboto Mono', monospace; font-size: 10px; color: var(--muted); }
+  .seg-bar-bg {
+    height: 6px; border-radius: 3px;
+    background: var(--surface2);
+    overflow: hidden;
+  }
+  .seg-bar { height: 100%; border-radius: 3px; transition: width 1s ease; }
+
+  /* ── MAP PILLS ── */
+  .map-pill {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px; letter-spacing: .06em;
+    padding: 5px 12px; border-radius: 20px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .map-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .map-pill.active {
+    background: rgba(0,200,255,.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center; padding: 18px 28px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px; color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div>
+      <h1>CREDIT RISK & CAMPAIGN ANALYTICS</h1>
+      <span>Lending Club Portfolio · 100,000+ Records</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge">● LIVE DASHBOARD</div>
+    <div class="header-stat">
+      <div class="val" id="hdr-total">$892M</div>
+      <div class="lbl">TOTAL EXPOSURE</div>
+    </div>
+    <div class="header-stat">
+      <div class="val" id="hdr-default" style="color:var(--danger)">14.2%</div>
+      <div class="lbl">DEFAULT RATE</div>
+    </div>
+    <div class="header-stat">
+      <div class="val" id="hdr-health" style="color:var(--accent3)">72</div>
+      <div class="lbl">HEALTH SCORE</div>
+    </div>
+  </div>
+</header>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <label>GRADE
+    <select id="f-grade" onchange="applyFilters()">
+      <option value="ALL">All Grades</option>
+      <option value="A">A — Prime</option>
+      <option value="B">B — Near-Prime</option>
+      <option value="C">C — Near-Prime</option>
+      <option value="D">D — Subprime</option>
+      <option value="E">E — Subprime</option>
+      <option value="F">F — Deep Subprime</option>
+    </select>
+  </label>
+  <label>LOAN PURPOSE
+    <select id="f-purpose" onchange="applyFilters()">
+      <option value="ALL">All Purposes</option>
+      <option value="debt_consolidation">Debt Consolidation</option>
+      <option value="credit_card">Credit Card</option>
+      <option value="home_improvement">Home Improvement</option>
+      <option value="small_business">Small Business</option>
+      <option value="other">Other</option>
+    </select>
+  </label>
+  <label>TERM
+    <select id="f-term" onchange="applyFilters()">
+      <option value="ALL">All Terms</option>
+      <option value="36">36 Months</option>
+      <option value="60">60 Months</option>
+    </select>
+  </label>
+  <label>RISK SEGMENT
+    <select id="f-risk" onchange="applyFilters()">
+      <option value="ALL">All Segments</option>
+      <option value="Prime">Prime</option>
+      <option value="Near-Prime">Near-Prime</option>
+      <option value="Subprime">Subprime</option>
+      <option value="Deep Subprime">Deep Subprime</option>
+    </select>
+  </label>
+  <label>YEAR
+    <select id="f-year" onchange="applyFilters()">
+      <option value="ALL">All Years</option>
+      <option value="2011">2011</option>
+      <option value="2012">2012</option>
+      <option value="2013">2013</option>
+      <option value="2014">2014</option>
+      <option value="2015">2015</option>
+    </select>
+  </label>
+  <button class="reset-btn" onclick="resetFilters()">↺ RESET</button>
+</div>
+
+<main>
+
+  <!-- KPI ROW -->
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-label">TOTAL LOANS</div>
+      <div class="kpi-value" id="kpi-loans">105.4K</div>
+      <div class="kpi-sub">Active portfolio</div>
+      <div class="kpi-badge badge-ok">▲ +3.2% MoM</div>
+    </div>
+    <div class="kpi-card cyan">
+      <div class="kpi-label">TOTAL EXPOSURE</div>
+      <div class="kpi-value" id="kpi-exposure">$892M</div>
+      <div class="kpi-sub">Funded amount</div>
+      <div class="kpi-badge badge-ok">▲ $23M MoM</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">DEFAULT RATE</div>
+      <div class="kpi-value" id="kpi-default">14.2%</div>
+      <div class="kpi-sub">is_default flag</div>
+      <div class="kpi-badge badge-bad">▲ +0.4% MoM</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">CHARGEOFF RATE</div>
+      <div class="kpi-value" id="kpi-chargeoff">11.8%</div>
+      <div class="kpi-sub">Charged-off loans</div>
+      <div class="kpi-badge badge-warn">⚠ Elevated</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">WATCHLIST</div>
+      <div class="kpi-value" id="kpi-watchlist">18.3K</div>
+      <div class="kpi-sub">Early warning</div>
+      <div class="kpi-badge badge-warn">17.4% of book</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">CAMPAIGN RESPONSE</div>
+      <div class="kpi-value" id="kpi-response">62.1%</div>
+      <div class="kpi-sub">Prime + Near-Prime</div>
+      <div class="kpi-badge badge-ok">▲ +1.8% MoM</div>
+    </div>
+  </div>
+
+  <!-- ROW 2: Default by Grade + Trend + Segment Donut -->
+  <div class="chart-row-3">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Default Rate by Grade</div>
+          <div class="chart-subtitle">PD proxy across credit tiers</div>
+        </div>
+        <div class="chart-tag">RISK</div>
+      </div>
+      <canvas id="chart-default-grade"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Loan Issuance Trend</div>
+          <div class="chart-subtitle">Monthly volume + default rate overlay</div>
+        </div>
+        <div class="chart-tag">TIME</div>
+      </div>
+      <canvas id="chart-trend"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Portfolio Composition</div>
+          <div class="chart-subtitle">By loan outcome</div>
+        </div>
+        <div class="chart-tag">STATUS</div>
+      </div>
+      <canvas id="chart-status-donut"></canvas>
+    </div>
+  </div>
+
+  <!-- ROW 3: Interest Rate vs Default Scatter + Income Band Default -->
+  <div class="chart-row-2">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Loan Purpose — Volume vs Default Rate</div>
+          <div class="chart-subtitle">Bubble size = total exposure</div>
+        </div>
+        <div class="chart-tag">CAMPAIGN</div>
+      </div>
+      <canvas id="chart-purpose-bubble" style="max-height:240px"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Risk Segment Distribution</div>
+          <div class="chart-subtitle">Share of portfolio by risk tier</div>
+        </div>
+        <div class="chart-tag">SEGMENT</div>
+      </div>
+      <div class="seg-row" id="seg-bars" style="padding-top:10px">
+        <div class="seg-item">
+          <div class="seg-label-row">
+            <span class="seg-name" style="color:var(--prime)">Prime (Grade A)</span>
+            <span class="seg-pct">22.4% · DR: 3.1%</span>
+          </div>
+          <div class="seg-bar-bg"><div class="seg-bar" style="width:22.4%;background:var(--prime)"></div></div>
+        </div>
+        <div class="seg-item">
+          <div class="seg-label-row">
+            <span class="seg-name" style="color:var(--nearprime)">Near-Prime (B+C)</span>
+            <span class="seg-pct">39.7% · DR: 9.8%</span>
+          </div>
+          <div class="seg-bar-bg"><div class="seg-bar" style="width:39.7%;background:var(--nearprime)"></div></div>
+        </div>
+        <div class="seg-item">
+          <div class="seg-label-row">
+            <span class="seg-name" style="color:var(--subprime)">Subprime (D+E)</span>
+            <span class="seg-pct">27.8% · DR: 22.4%</span>
+          </div>
+          <div class="seg-bar-bg"><div class="seg-bar" style="width:27.8%;background:var(--subprime)"></div></div>
+        </div>
+        <div class="seg-item">
+          <div class="seg-label-row">
+            <span class="seg-name" style="color:var(--deep)">Deep Subprime (F+G)</span>
+            <span class="seg-pct">10.1% · DR: 33.9%</span>
+          </div>
+          <div class="seg-bar-bg"><div class="seg-bar" style="width:10.1%;background:var(--deep)"></div></div>
+        </div>
+        <!-- Campaign metrics below -->
+        <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+          <div class="chart-subtitle" style="margin-bottom:10px">CAMPAIGN RESPONSE BY SEGMENT</div>
+          <div class="seg-item">
+            <div class="seg-label-row">
+              <span class="seg-name" style="font-size:11px;color:var(--prime)">Prime</span>
+              <span class="seg-pct">91.2% response</span>
+            </div>
+            <div class="seg-bar-bg"><div class="seg-bar" style="width:91.2%;background:var(--prime)"></div></div>
+          </div>
+          <div class="seg-item">
+            <div class="seg-label-row">
+              <span class="seg-name" style="font-size:11px;color:var(--nearprime)">Near-Prime</span>
+              <span class="seg-pct">74.5% response</span>
+            </div>
+            <div class="seg-bar-bg"><div class="seg-bar" style="width:74.5%;background:var(--nearprime)"></div></div>
+          </div>
+          <div class="seg-item">
+            <div class="seg-label-row">
+              <span class="seg-name" style="font-size:11px;color:var(--subprime)">Subprime</span>
+              <span class="seg-pct">41.3% response</span>
+            </div>
+            <div class="seg-bar-bg"><div class="seg-bar" style="width:41.3%;background:var(--subprime)"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 4: FICO Band + Chargeoff Recovery + Income Default -->
+  <div class="chart-row-3">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Default Rate by FICO Band</div>
+          <div class="chart-subtitle">Credit score risk ladder</div>
+        </div>
+        <div class="chart-tag">FICO</div>
+      </div>
+      <canvas id="chart-fico"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Chargeoff vs Recovery Rate</div>
+          <div class="chart-subtitle">LGD proxy by grade</div>
+        </div>
+        <div class="chart-tag">LGD</div>
+      </div>
+      <canvas id="chart-recovery"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Default Rate by Income Band</div>
+          <div class="chart-subtitle">Income-risk relationship</div>
+        </div>
+        <div class="chart-tag">INCOME</div>
+      </div>
+      <canvas id="chart-income"></canvas>
+    </div>
+  </div>
+
+  <!-- ROW 5: Watchlist Table -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Watchlist — Early Warning Accounts</div>
+        <div class="chart-subtitle">Accounts meeting ≥2 stress signals: DTI>30, Revol Util>80%, delinquent, or int rate>20%</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">18,342 accounts</span>
+        <div class="chart-tag" style="background:rgba(255,59,92,.1);border-color:rgba(255,59,92,.3);color:var(--danger)">ALERT</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="watchlist-table">
+        <thead>
+          <tr>
+            <th>GRADE</th>
+            <th>SEGMENT</th>
+            <th>LOAN AMT</th>
+            <th>INT RATE</th>
+            <th>DTI</th>
+            <th>REVOL UTIL</th>
+            <th>DELINQ (2YR)</th>
+            <th>FICO</th>
+            <th>STATUS</th>
+            <th>WATCHLIST</th>
+          </tr>
+        </thead>
+        <tbody id="watchlist-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ROW 6: DTI Band + Interest Rate Heatmap -->
+  <div class="chart-row-2b">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">DTI Band — Default Distribution</div>
+          <div class="chart-subtitle">Debt-to-income risk spectrum</div>
+        </div>
+        <div class="chart-tag">DTI</div>
+      </div>
+      <canvas id="chart-dti"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Interest Rate Band vs Loan Purpose</div>
+          <div class="chart-subtitle">Average rate by purpose segment</div>
+        </div>
+        <div class="chart-tag">RATE</div>
+      </div>
+      <canvas id="chart-rate-purpose" style="max-height:240px"></canvas>
+    </div>
+  </div>
+
+</main>
+
+  <!-- ROW 7: GEOGRAPHIC RISK MAP -->
+  <div class="chart-card" style="padding-bottom:24px">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Geographic Concentration & Risk Map</div>
+        <div class="chart-subtitle">State-level portfolio distribution — hover for details</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="chart-tag" style="background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#a78bfa">GEO RISK</div>
+      </div>
+    </div>
+
+    <!-- Metric Slicer -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+      <span style="font-family:'Roboto Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em;align-self:center">METRIC:</span>
+      <button class="map-pill active" onclick="switchMap('default_rate')">Default Rate %</button>
+      <button class="map-pill" onclick="switchMap('chargeoff_rate')">Chargeoff Rate %</button>
+      <button class="map-pill" onclick="switchMap('loan_count')">Loan Volume</button>
+      <button class="map-pill" onclick="switchMap('total_exposure')">Total Exposure</button>
+      <button class="map-pill" onclick="switchMap('avg_int_rate')">Avg Interest Rate</button>
+      <button class="map-pill" onclick="switchMap('watchlist_rate')">Watchlist Rate %</button>
+    </div>
+
+    <div id="geo-map" style="width:100%;height:460px"></div>
+
+    <!-- State breakdown mini-table -->
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="chart-subtitle">TOP 10 STATES BY SELECTED METRIC</span>
+        <span id="map-metric-label" style="font-family:'Roboto Mono',monospace;font-size:9px;color:var(--accent)">DEFAULT RATE %</span>
+      </div>
+      <div id="state-bar-list" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 32px"></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Lending Club Credit Risk & Campaign Analytics Dashboard · Built with Power BI, Power Query, DAX, Python, SQL ·
+  Hiral Sarkar — AI Model Risk Management Portfolio
+</footer>
+
+<script>
+// ─── CHART DEFAULTS ───────────────────────────────────────────
+Chart.defaults.color = '#5a6a80';
+Chart.defaults.borderColor = '#1e2a3a';
+Chart.defaults.font.family = "'Roboto Mono', monospace";
+Chart.defaults.font.size = 10;
+
+const C = {
+  accent:  '#00c8ff',
+  accent2: '#ff6b35',
+  accent3: '#7cfc91',
+  danger:  '#ff3b5c',
+  warn:    '#ffb020',
+  purple:  '#a78bfa',
+  cyan2:   '#00e5d4',
+  muted:   '#5a6a80',
+  surface: '#111620',
+};
+
+const gradeColors = {
+  A: '#00c8ff', B: '#7cfc91', C: '#ffb020',
+  D: '#ff6b35', E: '#ff3b5c', F: '#d946ef', G: '#a78bfa'
+};
+
+// ─── 1. DEFAULT BY GRADE ──────────────────────────────────────
+new Chart(document.getElementById('chart-default-grade'), {
+  type: 'bar',
+  data: {
+    labels: ['A','B','C','D','E','F','G'],
+    datasets: [{
+      label: 'Default Rate %',
+      data: [3.1, 7.4, 13.2, 20.6, 27.8, 33.2, 38.9],
+      backgroundColor: ['#00c8ff','#7cfc91','#ffb020','#ff6b35','#ff3b5c','#d946ef','#a78bfa'],
+      borderRadius: 5, borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: { label: ctx => ` ${ctx.raw}%` }
+      }
+    },
+    scales: {
+      y: {
+        grid: { color: '#1e2a3a' },
+        ticks: { callback: v => v + '%' }
+      },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ─── 2. TREND ─────────────────────────────────────────────────
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+new Chart(document.getElementById('chart-trend'), {
+  type: 'bar',
+  data: {
+    labels: months,
+    datasets: [
+      {
+        label: 'Loans Issued',
+        data: [5800,6200,7100,7900,8400,9100,8700,9500,10200,9800,11200,10900],
+        backgroundColor: 'rgba(0,200,255,.25)',
+        borderColor: C.accent,
+        borderWidth: 1,
+        borderRadius: 4,
+        yAxisID: 'y',
+      },
+      {
+        label: 'Default Rate %',
+        data: [12.1,12.8,13.2,13.0,13.8,14.1,13.9,14.4,14.7,14.2,14.8,15.1],
+        type: 'line',
+        borderColor: C.danger,
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        tension: 0.4,
+        pointRadius: 3,
+        pointBackgroundColor: C.danger,
+        yAxisID: 'y2',
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { labels: { boxWidth: 10 } } },
+    scales: {
+      y:  { grid: { color: '#1e2a3a' }, ticks: { callback: v => v/1000+'K' }, position: 'left' },
+      y2: { grid: { display: false }, ticks: { callback: v => v+'%' }, position: 'right' },
+      x:  { grid: { display: false } }
+    }
+  }
+});
+
+// ─── 3. STATUS DONUT ──────────────────────────────────────────
+new Chart(document.getElementById('chart-status-donut'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Fully Paid','Current','Charged Off','Default','Late 31-120d','Late 16-30d'],
+    datasets: [{
+      data: [47.2, 22.4, 11.8, 2.4, 8.3, 7.9],
+      backgroundColor: [
+        'rgba(124,252,145,.8)',
+        'rgba(0,200,255,.8)',
+        'rgba(255,59,92,.8)',
+        'rgba(255,59,92,.5)',
+        'rgba(255,176,32,.8)',
+        'rgba(255,176,32,.5)',
+      ],
+      borderWidth: 2,
+      borderColor: '#0b0e14',
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    cutout: '68%',
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: { boxWidth: 10, padding: 8, font: { size: 9 } }
+      },
+      tooltip: {
+        callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}%` }
+      }
+    }
+  }
+});
+
+// ─── 4. PURPOSE BUBBLE ────────────────────────────────────────
+new Chart(document.getElementById('chart-purpose-bubble'), {
+  type: 'bubble',
+  data: {
+    datasets: [
+      { label:'Debt Consolidation', data:[{x:58420,y:13.2,r:22}], backgroundColor:'rgba(0,200,255,.6)' },
+      { label:'Credit Card',        data:[{x:15280,y: 9.8,r:14}], backgroundColor:'rgba(124,252,145,.6)' },
+      { label:'Home Improvement',   data:[{x:8910, y: 7.4,r:11}], backgroundColor:'rgba(0,229,212,.6)' },
+      { label:'Small Business',     data:[{x:4230, y:19.6,r: 9}], backgroundColor:'rgba(255,176,32,.6)' },
+      { label:'Medical',            data:[{x:2140, y:15.3,r: 7}], backgroundColor:'rgba(255,107,53,.6)' },
+      { label:'Major Purchase',     data:[{x:3800, y: 8.1,r: 8}], backgroundColor:'rgba(167,139,250,.6)' },
+      { label:'Other',              data:[{x:6900, y:12.7,r:10}], backgroundColor:'rgba(255,59,92,.4)' },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: {
+      legend: { labels: { boxWidth: 8, padding: 6, font:{ size:9 } } },
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.dataset.label}: ${ctx.raw.x.toLocaleString()} loans · DR ${ctx.raw.y}%`
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Loan Count', color: C.muted },
+        grid: { color:'#1e2a3a' },
+      },
+      y: {
+        title: { display: true, text: 'Default Rate %', color: C.muted },
+        grid: { color:'#1e2a3a' },
+        ticks: { callback: v => v+'%' }
+      }
+    }
+  }
+});
+
+// ─── 5. FICO BAND ─────────────────────────────────────────────
+new Chart(document.getElementById('chart-fico'), {
+  type: 'bar',
+  data: {
+    labels: ['Poor\n<580','Fair\n580–669','Good\n670–739','V.Good\n740–799','Excl.\n800+'],
+    datasets: [{
+      label: 'Default Rate %',
+      data: [31.4, 19.2, 11.8, 6.3, 2.1],
+      backgroundColor: [C.danger, C.accent2, C.warn, C.accent3, C.accent],
+      borderRadius: 5, borderWidth: 0,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color:'#1e2a3a' }, ticks: { callback: v => v+'%' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// ─── 6. CHARGEOFF vs RECOVERY ─────────────────────────────────
+new Chart(document.getElementById('chart-recovery'), {
+  type: 'bar',
+  data: {
+    labels: ['A','B','C','D','E','F','G'],
+    datasets: [
+      {
+        label: 'Chargeoff Rate %',
+        data: [1.8, 5.6, 10.9, 18.2, 25.1, 30.8, 36.4],
+        backgroundColor: 'rgba(255,59,92,.7)',
+        borderRadius: 4, borderWidth: 0, stack: 'stack',
+      },
+      {
+        label: 'Recovery Rate %',
+        data: [88.2, 72.4, 61.3, 48.7, 36.2, 27.9, 19.4],
+        backgroundColor: 'rgba(124,252,145,.5)',
+        borderRadius: 4, borderWidth: 0, stack: 'stack2',
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: {
+      legend: { labels: { boxWidth: 10 } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}%` } }
+    },
+    scales: {
+      y: { grid: { color:'#1e2a3a' }, ticks: { callback: v => v+'%' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ─── 7. INCOME BAND ───────────────────────────────────────────
+new Chart(document.getElementById('chart-income'), {
+  type: 'line',
+  data: {
+    labels: ['<30K','30K–60K','60K–100K','100K–200K','200K+'],
+    datasets: [{
+      label: 'Default Rate %',
+      data: [22.8, 16.3, 11.9, 7.4, 3.8],
+      borderColor: C.purple,
+      backgroundColor: 'rgba(167,139,250,.15)',
+      borderWidth: 2, tension: 0.4,
+      fill: true,
+      pointBackgroundColor: C.purple,
+      pointRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color:'#1e2a3a' }, ticks: { callback: v => v+'%' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ─── 8. DTI BAND ──────────────────────────────────────────────
+new Chart(document.getElementById('chart-dti'), {
+  type: 'bar',
+  data: {
+    labels: ['Low\n<15','Moderate\n15–25','High\n25–35','Very High\n>35'],
+    datasets: [{
+      label: 'Default Rate %',
+      data: [8.4, 13.1, 19.7, 27.3],
+      backgroundColor: [C.accent3, C.warn, C.accent2, C.danger],
+      borderRadius: 6, borderWidth: 0,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color:'#1e2a3a' }, ticks: { callback: v => v+'%' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// ─── 9. RATE BY PURPOSE ───────────────────────────────────────
+new Chart(document.getElementById('chart-rate-purpose'), {
+  type: 'bar',
+  data: {
+    labels: [
+      'Small Business','Moving','Medical','Vacation',
+      'Other','Debt Consol.','Credit Card','Home Improv.','Major Purch.'
+    ],
+    datasets: [{
+      label: 'Avg Interest Rate %',
+      data: [15.8,14.9,14.2,13.7,13.4,12.8,12.1,11.6,10.9],
+      backgroundColor: labels => {
+        const vals = [15.8,14.9,14.2,13.7,13.4,12.8,12.1,11.6,10.9];
+        return vals.map(v =>
+          v > 15 ? 'rgba(255,59,92,.75)' :
+          v > 13 ? 'rgba(255,176,32,.75)' :
+                   'rgba(0,200,255,.6)'
+        );
+      },
+      borderRadius: 4, borderWidth: 0,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color:'#1e2a3a' }, ticks: { callback: v => v+'%' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// ─── WATCHLIST TABLE ──────────────────────────────────────────
+const watchlistData = [
+  {grade:'E', seg:'Subprime',     amt:'$28,500', rate:'24.1%', dti:'38.2', util:'91%', delinq:2, fico:612, status:'Late 31-120d', wl:true},
+  {grade:'D', seg:'Subprime',     amt:'$21,000', rate:'20.8%', dti:'34.7', util:'84%', delinq:1, fico:638, status:'Late 16-30d',  wl:true},
+  {grade:'F', seg:'Deep Subprime',amt:'$14,500', rate:'28.3%', dti:'41.1', util:'97%', delinq:3, fico:591, status:'Default',      wl:true},
+  {grade:'C', seg:'Near-Prime',   amt:'$32,000', rate:'16.2%', dti:'31.8', util:'78%', delinq:1, fico:672, status:'Current',      wl:true},
+  {grade:'D', seg:'Subprime',     amt:'$18,750', rate:'22.4%', dti:'29.6', util:'86%', delinq:0, fico:645, status:'Late 31-120d', wl:true},
+  {grade:'E', seg:'Subprime',     amt:'$25,200', rate:'25.9%', dti:'36.4', util:'93%', delinq:2, fico:608, status:'Charged Off',  wl:true},
+  {grade:'B', seg:'Near-Prime',   amt:'$15,000', rate:'13.1%', dti:'28.9', util:'82%', delinq:0, fico:694, status:'Current',      wl:true},
+  {grade:'G', seg:'Deep Subprime',amt:'$8,000',  rate:'30.7%', dti:'44.2', util:'99%', delinq:4, fico:572, status:'Default',      wl:true},
+];
+
+const tbody = document.getElementById('watchlist-tbody');
+watchlistData.forEach(row => {
+  const dotClass = row.status.includes('Charged') || row.status === 'Default' ? 'dot-alert'
+                  : row.status.includes('Late') ? 'dot-warn' : 'dot-ok';
+  tbody.innerHTML += `
+    <tr>
+      <td><span class="grade-pill g-${row.grade}">${row.grade}</span></td>
+      <td>${row.seg}</td>
+      <td>${row.amt}</td>
+      <td style="color:${parseFloat(row.rate)>20?'var(--danger)':parseFloat(row.rate)>15?'var(--warn)':'var(--text)'}">${row.rate}</td>
+      <td style="color:${parseFloat(row.dti)>35?'var(--danger)':parseFloat(row.dti)>28?'var(--warn)':'var(--text)'}">${row.dti}</td>
+      <td style="color:${parseInt(row.util)>90?'var(--danger)':parseInt(row.util)>80?'var(--warn)':'var(--text)'}">${row.util}</td>
+      <td style="color:${row.delinq>1?'var(--danger)':row.delinq>0?'var(--warn)':'var(--text)'}">${row.delinq}</td>
+      <td style="color:${row.fico<620?'var(--danger)':row.fico<670?'var(--warn)':'var(--text)'}">${row.fico}</td>
+      <td><span class="status-dot ${dotClass}"></span>${row.status}</td>
+      <td style="color:var(--danger);font-weight:700">⚠ WATCH</td>
+    </tr>`;
+});
+
+// ─── FILTER SIMULATION ────────────────────────────────────────
+const baseKPIs = {
+  ALL:  { loans:'105.4K', exposure:'$892M', defRate:'14.2%', chargeoff:'11.8%', watchlist:'18.3K', response:'62.1%' },
+  A:    { loans:'22.8K',  exposure:'$198M', defRate:'3.1%',  chargeoff:'1.8%',  watchlist:'2.1K',  response:'91.2%' },
+  B:    { loans:'31.4K',  exposure:'$272M', defRate:'7.4%',  chargeoff:'5.6%',  watchlist:'4.8K',  response:'74.5%' },
+  C:    { loans:'27.1K',  exposure:'$234M', defRate:'13.2%', chargeoff:'10.9%', watchlist:'5.9K',  response:'58.3%' },
+  D:    { loans:'14.2K',  exposure:'$121M', defRate:'20.6%', chargeoff:'18.2%', watchlist:'4.2K',  response:'31.2%' },
+  E:    { loans:'6.8K',   exposure:'$46M',  defRate:'27.8%', chargeoff:'25.1%', watchlist:'1.9K',  response:'18.7%' },
+  F:    { loans:'2.4K',   exposure:'$16M',  defRate:'33.2%', chargeoff:'30.8%', watchlist:'810',   response:'9.1%' },
+};
+
+function applyFilters() {
+  const grade = document.getElementById('f-grade').value;
+  const kpis = baseKPIs[grade] || baseKPIs['ALL'];
+  document.getElementById('kpi-loans').textContent     = kpis.loans;
+  document.getElementById('kpi-exposure').textContent  = kpis.exposure;
+  document.getElementById('kpi-default').textContent   = kpis.defRate;
+  document.getElementById('kpi-chargeoff').textContent = kpis.chargeoff;
+  document.getElementById('kpi-watchlist').textContent = kpis.watchlist;
+  document.getElementById('kpi-response').textContent  = kpis.response;
+  document.getElementById('hdr-total').textContent     = kpis.exposure;
+  document.getElementById('hdr-default').textContent   = kpis.defRate;
+}
+
+function resetFilters() {
+  ['f-grade','f-purpose','f-term','f-risk','f-year'].forEach(id => {
+    document.getElementById(id).value = 'ALL';
+  });
+  applyFilters();
+}
+
+// ─── GEO MAP ──────────────────────────────────────────────────
+const stateData = [
+  {s:'CA',loans:14820,exposure:248e6,default_rate:13.1,chargeoff_rate:11.2,avg_int_rate:13.4,watchlist_rate:39.2},
+  {s:'TX',loans:8940, exposure:141e6,default_rate:14.8,chargeoff_rate:12.9,avg_int_rate:13.8,watchlist_rate:42.1},
+  {s:'NY',loans:8210, exposure:138e6,default_rate:12.4,chargeoff_rate:10.6,avg_int_rate:12.9,watchlist_rate:37.8},
+  {s:'FL',loans:7680, exposure:121e6,default_rate:16.2,chargeoff_rate:14.1,avg_int_rate:14.2,watchlist_rate:45.3},
+  {s:'IL',loans:4920, exposure:78e6, default_rate:14.1,chargeoff_rate:12.2,avg_int_rate:13.5,watchlist_rate:41.0},
+  {s:'PA',loans:4410, exposure:69e6, default_rate:13.6,chargeoff_rate:11.8,avg_int_rate:13.2,watchlist_rate:39.9},
+  {s:'OH',loans:3870, exposure:59e6, default_rate:14.9,chargeoff_rate:13.0,avg_int_rate:13.9,watchlist_rate:43.2},
+  {s:'NJ',loans:3650, exposure:63e6, default_rate:12.8,chargeoff_rate:10.9,avg_int_rate:13.0,watchlist_rate:38.4},
+  {s:'GA',loans:3420, exposure:53e6, default_rate:16.8,chargeoff_rate:14.7,avg_int_rate:14.5,watchlist_rate:46.1},
+  {s:'VA',loans:3190, exposure:52e6, default_rate:13.2,chargeoff_rate:11.4,avg_int_rate:13.1,watchlist_rate:38.9},
+  {s:'NC',loans:3080, exposure:47e6, default_rate:15.1,chargeoff_rate:13.2,avg_int_rate:14.0,watchlist_rate:43.8},
+  {s:'MI',loans:2940, exposure:44e6, default_rate:15.6,chargeoff_rate:13.6,avg_int_rate:14.3,watchlist_rate:44.5},
+  {s:'WA',loans:2860, exposure:49e6, default_rate:11.9,chargeoff_rate:10.1,avg_int_rate:12.6,watchlist_rate:36.2},
+  {s:'MA',loans:2710, exposure:47e6, default_rate:11.4,chargeoff_rate:9.7, avg_int_rate:12.3,watchlist_rate:35.1},
+  {s:'AZ',loans:2580, exposure:40e6, default_rate:15.8,chargeoff_rate:13.8,avg_int_rate:14.4,watchlist_rate:44.9},
+  {s:'CO',loans:2440, exposure:42e6, default_rate:12.7,chargeoff_rate:10.8,avg_int_rate:12.8,watchlist_rate:37.6},
+  {s:'MN',loans:2190, exposure:36e6, default_rate:11.8,chargeoff_rate:9.9, avg_int_rate:12.4,watchlist_rate:35.8},
+  {s:'MD',loans:2150, exposure:36e6, default_rate:13.9,chargeoff_rate:12.0,avg_int_rate:13.4,watchlist_rate:40.6},
+  {s:'TN',loans:2080, exposure:31e6, default_rate:16.4,chargeoff_rate:14.3,avg_int_rate:14.6,watchlist_rate:45.8},
+  {s:'MO',loans:1980, exposure:30e6, default_rate:15.2,chargeoff_rate:13.3,avg_int_rate:14.1,watchlist_rate:43.5},
+  {s:'IN',loans:1860, exposure:28e6, default_rate:15.7,chargeoff_rate:13.7,avg_int_rate:14.3,watchlist_rate:44.7},
+  {s:'WI',loans:1820, exposure:29e6, default_rate:12.6,chargeoff_rate:10.7,avg_int_rate:12.8,watchlist_rate:37.3},
+  {s:'SC',loans:1640, exposure:24e6, default_rate:16.9,chargeoff_rate:14.8,avg_int_rate:14.7,watchlist_rate:46.4},
+  {s:'OR',loans:1580, exposure:27e6, default_rate:12.1,chargeoff_rate:10.3,avg_int_rate:12.6,watchlist_rate:36.5},
+  {s:'CT',loans:1420, exposure:25e6, default_rate:12.9,chargeoff_rate:11.0,avg_int_rate:13.1,watchlist_rate:38.6},
+  {s:'NV',loans:1390, exposure:22e6, default_rate:17.4,chargeoff_rate:15.2,avg_int_rate:15.1,watchlist_rate:47.8},
+  {s:'LA',loans:1310, exposure:19e6, default_rate:18.2,chargeoff_rate:16.0,avg_int_rate:15.4,watchlist_rate:49.1},
+  {s:'AL',loans:1280, exposure:18e6, default_rate:17.8,chargeoff_rate:15.6,avg_int_rate:15.2,watchlist_rate:48.3},
+  {s:'KY',loans:1180, exposure:17e6, default_rate:16.1,chargeoff_rate:14.0,avg_int_rate:14.5,watchlist_rate:45.2},
+  {s:'OK',loans:1090, exposure:16e6, default_rate:17.2,chargeoff_rate:15.0,avg_int_rate:15.0,watchlist_rate:47.4},
+  {s:'UT',loans:1040, exposure:18e6, default_rate:12.3,chargeoff_rate:10.5,avg_int_rate:12.7,watchlist_rate:37.1},
+  {s:'KS',loans:980,  exposure:14e6, default_rate:14.8,chargeoff_rate:12.9,avg_int_rate:13.9,watchlist_rate:43.1},
+  {s:'AR',loans:870,  exposure:12e6, default_rate:17.6,chargeoff_rate:15.4,avg_int_rate:15.2,watchlist_rate:48.0},
+  {s:'MS',loans:820,  exposure:11e6, default_rate:19.1,chargeoff_rate:16.8,avg_int_rate:15.8,watchlist_rate:50.4},
+  {s:'NM',loans:780,  exposure:11e6, default_rate:16.5,chargeoff_rate:14.4,avg_int_rate:14.7,watchlist_rate:46.0},
+  {s:'WV',loans:680,  exposure:9e6,  default_rate:18.4,chargeoff_rate:16.2,avg_int_rate:15.5,watchlist_rate:49.6},
+  {s:'NE',loans:670,  exposure:10e6, default_rate:13.1,chargeoff_rate:11.2,avg_int_rate:13.2,watchlist_rate:39.3},
+  {s:'ID',loans:620,  exposure:9e6,  default_rate:13.6,chargeoff_rate:11.7,avg_int_rate:13.4,watchlist_rate:40.2},
+  {s:'HI',loans:590,  exposure:11e6, default_rate:11.2,chargeoff_rate:9.4, avg_int_rate:12.2,watchlist_rate:34.8},
+  {s:'NH',loans:560,  exposure:10e6, default_rate:11.6,chargeoff_rate:9.8, avg_int_rate:12.4,watchlist_rate:35.5},
+  {s:'ME',loans:480,  exposure:7e6,  default_rate:13.3,chargeoff_rate:11.4,avg_int_rate:13.3,watchlist_rate:39.6},
+  {s:'RI',loans:450,  exposure:7e6,  default_rate:12.7,chargeoff_rate:10.8,avg_int_rate:12.9,watchlist_rate:38.1},
+  {s:'MT',loans:420,  exposure:6e6,  default_rate:14.2,chargeoff_rate:12.3,avg_int_rate:13.6,watchlist_rate:41.4},
+  {s:'DE',loans:400,  exposure:7e6,  default_rate:13.8,chargeoff_rate:11.9,avg_int_rate:13.3,watchlist_rate:40.8},
+  {s:'SD',loans:380,  exposure:5e6,  default_rate:13.4,chargeoff_rate:11.5,avg_int_rate:13.2,watchlist_rate:40.0},
+  {s:'AK',loans:350,  exposure:7e6,  default_rate:12.8,chargeoff_rate:10.9,avg_int_rate:13.0,watchlist_rate:38.3},
+  {s:'VT',loans:310,  exposure:5e6,  default_rate:11.1,chargeoff_rate:9.3, avg_int_rate:12.1,watchlist_rate:34.4},
+  {s:'WY',loans:290,  exposure:4e6,  default_rate:13.9,chargeoff_rate:12.0,avg_int_rate:13.4,watchlist_rate:40.9},
+  {s:'DC',loans:420,  exposure:9e6,  default_rate:12.2,chargeoff_rate:10.4,avg_int_rate:12.7,watchlist_rate:36.9},
+  {s:'ND',loans:260,  exposure:4e6,  default_rate:11.8,chargeoff_rate:9.9, avg_int_rate:12.5,watchlist_rate:35.7},
+];
+
+const metricConfig = {
+  default_rate:   { label:'Default Rate %',     fmt: v => v.toFixed(1)+'%',                     colorscale:'Reds',    range:[3,20]   },
+  chargeoff_rate: { label:'Chargeoff Rate %',   fmt: v => v.toFixed(1)+'%',                     colorscale:'OrRd',    range:[2,18]   },
+  loan_count:     { label:'Loan Volume',        fmt: v => v.toLocaleString(),                   colorscale:'Blues',   range:[0,15000]},
+  total_exposure: { label:'Total Exposure',     fmt: v => '$'+(v/1e6).toFixed(0)+'M',           colorscale:'Purples', range:[0,250e6]},
+  avg_int_rate:   { label:'Avg Interest Rate %',fmt: v => v.toFixed(1)+'%',                     colorscale:'YlOrRd',  range:[11,16]  },
+  watchlist_rate: { label:'Watchlist Rate %',   fmt: v => v.toFixed(1)+'%',                     colorscale:'RdPu',    range:[30,52]  },
+};
+
+function getValues(metric) {
+  if (metric === 'loan_count')     return stateData.map(d => d.loans);
+  if (metric === 'total_exposure') return stateData.map(d => d.exposure);
+  return stateData.map(d => d[metric]);
+}
+
+function buildHoverText() {
+  return stateData.map(d =>
+    '<b>' + d.s + '</b><br>' +
+    'Loans: ' + d.loans.toLocaleString() + '<br>' +
+    'Exposure: $' + (d.exposure/1e6).toFixed(0) + 'M<br>' +
+    'Default Rate: ' + d.default_rate.toFixed(1) + '%<br>' +
+    'Chargeoff Rate: ' + d.chargeoff_rate.toFixed(1) + '%<br>' +
+    'Avg Rate: ' + d.avg_int_rate.toFixed(1) + '%<br>' +
+    'Watchlist: ' + d.watchlist_rate.toFixed(1) + '%'
+  );
+}
+
+function renderMap(metric) {
+  const cfg = metricConfig[metric];
+  const data = [{
+    type: 'choropleth',
+    locationmode: 'USA-states',
+    locations: stateData.map(d => d.s),
+    z: getValues(metric),
+    text: buildHoverText(),
+    hovertemplate: '%{text}<extra></extra>',
+    colorscale: cfg.colorscale,
+    zmin: cfg.range[0],
+    zmax: cfg.range[1],
+    colorbar: {
+      title: { text: cfg.label, font: { color:'#5a6a80', size:10, family:"Roboto Mono, monospace" } },
+      tickfont: { color:'#5a6a80', size:9, family:"Roboto Mono, monospace" },
+      bgcolor: '#111620', bordercolor: '#1e2a3a', borderwidth: 1,
+      thickness: 14, len: 0.7,
+    },
+    marker: { line: { color:'#1e2a3a', width: 1 } },
+  }];
+
+  const layout = {
+    geo: {
+      scope: 'usa', bgcolor: '#0b0e14', lakecolor: '#0b0e14',
+      landcolor: '#161d2b', subunitcolor: '#1e2a3a',
+      showlakes: true, showland: true, showframe: false,
+      projection: { type: 'albers usa' },
+    },
+    paper_bgcolor: '#111620', plot_bgcolor: '#111620',
+    margin: { t:0, b:0, l:0, r:0 },
+    font: { family:"Roboto Mono, monospace", color:'#5a6a80' },
+  };
+
+  Plotly.react('geo-map', data, layout, { responsive:true, displayModeBar:false });
+}
+
+function renderStateBars(metric) {
+  const cfg = metricConfig[metric];
+  const vals = getValues(metric);
+  const sorted = stateData.map((d,i) => ({ state:d.s, val:vals[i] }))
+    .sort((a,b) => b.val - a.val).slice(0,10);
+  const maxVal = sorted[0].val;
+  const colMap = {
+    default_rate:'var(--danger)', chargeoff_rate:'var(--accent2)',
+    loan_count:'var(--accent)', total_exposure:'#a78bfa',
+    avg_int_rate:'var(--warn)', watchlist_rate:'var(--danger)',
+  };
+  const col = colMap[metric];
+  document.getElementById('state-bar-list').innerHTML = sorted.map(item => `
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-family:'Roboto Mono',monospace;font-size:10px;font-weight:600;color:var(--text)">${item.state}</span>
+        <span style="font-family:'Roboto Mono',monospace;font-size:10px;color:${col}">${cfg.fmt(item.val)}</span>
+      </div>
+      <div style="height:4px;border-radius:2px;background:var(--surface2)">
+        <div style="height:100%;border-radius:2px;background:${col};width:${(item.val/maxVal*100).toFixed(1)}%;transition:width .6s ease"></div>
+      </div>
+    </div>`).join('');
+}
+
+function switchMap(metric) {
+  currentMetric = metric;
+  document.querySelectorAll('.map-pill').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('map-metric-label').textContent = metricConfig[metric].label.toUpperCase();
+  renderMap(metric);
+  renderStateBars(metric);
+}
+
+let currentMetric = 'default_rate';
+renderMap('default_rate');
+renderStateBars('default_rate');
+</script>
+</body>
+</html>
