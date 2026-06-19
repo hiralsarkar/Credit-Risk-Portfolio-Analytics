@@ -3,6 +3,10 @@
 
 **Author:** Hiral Sarkar | MSc Global Financial Markets | PG Data Science & AI
 
+### [🔗 Live Interactive Dashboard →](https://hiralsarkar.github.io/Credit-Risk-Portfolio-Analytics/dashboard_mockup.html)
+
+> Dark-theme analytics dashboard — KPI cards, choropleth risk map, 9 interactive charts, watchlist table. No install required, runs in any browser.
+
 ---
 
 ## Project Structure

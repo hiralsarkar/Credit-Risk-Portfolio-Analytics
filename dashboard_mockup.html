@@ -595,8 +595,6 @@
     </div>
   </div>
 
-</main>
-
   <!-- ROW 7: GEOGRAPHIC RISK MAP -->
   <div class="chart-card" style="padding-bottom:24px">
     <div class="chart-header">
@@ -977,18 +975,38 @@ watchlistData.forEach(row => {
 
 // ─── FILTER SIMULATION ────────────────────────────────────────
 const baseKPIs = {
-  ALL:  { loans:'105.4K', exposure:'$892M', defRate:'14.2%', chargeoff:'11.8%', watchlist:'18.3K', response:'62.1%' },
-  A:    { loans:'22.8K',  exposure:'$198M', defRate:'3.1%',  chargeoff:'1.8%',  watchlist:'2.1K',  response:'91.2%' },
-  B:    { loans:'31.4K',  exposure:'$272M', defRate:'7.4%',  chargeoff:'5.6%',  watchlist:'4.8K',  response:'74.5%' },
-  C:    { loans:'27.1K',  exposure:'$234M', defRate:'13.2%', chargeoff:'10.9%', watchlist:'5.9K',  response:'58.3%' },
-  D:    { loans:'14.2K',  exposure:'$121M', defRate:'20.6%', chargeoff:'18.2%', watchlist:'4.2K',  response:'31.2%' },
-  E:    { loans:'6.8K',   exposure:'$46M',  defRate:'27.8%', chargeoff:'25.1%', watchlist:'1.9K',  response:'18.7%' },
-  F:    { loans:'2.4K',   exposure:'$16M',  defRate:'33.2%', chargeoff:'30.8%', watchlist:'810',   response:'9.1%' },
+  ALL:  { loans:'105.4K', exposure:'$892M', defRate:'14.2%', chargeoff:'11.8%', watchlist:'18.3K', response:'62.1%', health:'72' },
+  A:    { loans:'22.8K',  exposure:'$198M', defRate:'3.1%',  chargeoff:'1.8%',  watchlist:'2.1K',  response:'91.2%', health:'94' },
+  B:    { loans:'31.4K',  exposure:'$272M', defRate:'7.4%',  chargeoff:'5.6%',  watchlist:'4.8K',  response:'74.5%', health:'84' },
+  C:    { loans:'27.1K',  exposure:'$234M', defRate:'13.2%', chargeoff:'10.9%', watchlist:'5.9K',  response:'58.3%', health:'71' },
+  D:    { loans:'14.2K',  exposure:'$121M', defRate:'20.6%', chargeoff:'18.2%', watchlist:'4.2K',  response:'31.2%', health:'54' },
+  E:    { loans:'6.8K',   exposure:'$46M',  defRate:'27.8%', chargeoff:'25.1%', watchlist:'1.9K',  response:'18.7%', health:'38' },
+  F:    { loans:'2.4K',   exposure:'$16M',  defRate:'33.2%', chargeoff:'30.8%', watchlist:'810',   response:'9.1%',  health:'22' },
 };
 
+// Simulated purpose/term/risk adjusters (multiplicative on default rate)
+const purposeAdj  = { ALL:1.00, debt_consolidation:1.02, credit_card:0.93, home_improvement:0.88, small_business:1.18, other:1.05 };
+const termAdj     = { ALL:1.00, '36':0.91, '60':1.14 };
+const riskAdj     = { ALL:1.00, 'Prime':0.28, 'Near-Prime':0.82, 'Subprime':1.58, 'Deep Subprime':2.41 };
+
 function applyFilters() {
-  const grade = document.getElementById('f-grade').value;
-  const kpis = baseKPIs[grade] || baseKPIs['ALL'];
+  const grade   = document.getElementById('f-grade').value;
+  const purpose = document.getElementById('f-purpose').value;
+  const term    = document.getElementById('f-term').value;
+  const risk    = document.getElementById('f-risk').value;
+
+  const kpis = { ...baseKPIs[grade] || baseKPIs['ALL'] };
+
+  // Apply secondary filter adjustments to default rate for visual feedback
+  const adj = (purposeAdj[purpose] || 1) * (termAdj[term] || 1) * (riskAdj[risk] || 1);
+  if (adj !== 1.0) {
+    const base = parseFloat(kpis.defRate);
+    const adjusted = Math.min(Math.max(base * adj, 0.8), 42.0).toFixed(1);
+    kpis.defRate = adjusted + '%';
+    const h = Math.round(Math.max(10, Math.min(99, parseInt(kpis.health) / adj)));
+    kpis.health = String(h);
+  }
+
   document.getElementById('kpi-loans').textContent     = kpis.loans;
   document.getElementById('kpi-exposure').textContent  = kpis.exposure;
   document.getElementById('kpi-default').textContent   = kpis.defRate;
@@ -997,6 +1015,12 @@ function applyFilters() {
   document.getElementById('kpi-response').textContent  = kpis.response;
   document.getElementById('hdr-total').textContent     = kpis.exposure;
   document.getElementById('hdr-default').textContent   = kpis.defRate;
+  const healthEl = document.getElementById('hdr-health');
+  if (healthEl) {
+    healthEl.textContent = kpis.health;
+    healthEl.style.color = parseInt(kpis.health) >= 70 ? 'var(--accent3)'
+                         : parseInt(kpis.health) >= 45 ? 'var(--warn)' : 'var(--danger)';
+  }
 }
 
 function resetFilters() {
