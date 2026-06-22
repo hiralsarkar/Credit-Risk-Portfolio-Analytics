@@ -5,7 +5,7 @@
 
 ### [🔗 Live Interactive Dashboard →](https://hiralsarkar.github.io/Credit-Risk-Portfolio-Analytics/dashboard_mockup.html)
 
-> Dark-theme analytics dashboard — KPI cards, choropleth risk map, 9 interactive charts, watchlist table. No install required, runs in any browser.
+> Dark-theme analytics dashboard - KPI cards, choropleth risk map, 9 interactive charts, watchlist table. No install required, runs in any browser.
 
 ---
 
@@ -33,22 +33,22 @@ lending_club_powerbi/
 
 ## Step-by-Step Setup
 
-### Step 1 — Run the EDA Notebook
+### Step 1 - Run the EDA Notebook
 ```bash
 pip install pandas numpy matplotlib seaborn jupyter
 jupyter notebook notebooks/01_eda_and_prep.ipynb
 ```
 Run all cells top to bottom (Run → Run All Cells).
 **Outputs:**
-- `cleaned_lending_club.csv` — main import file for Power BI
-- `segment_summary.csv` — grade-level summary
-- `state_summary.csv` — geographic risk summary
+- `cleaned_lending_club.csv` - main import file for Power BI
+- `segment_summary.csv` - grade-level summary
+- `state_summary.csv` - geographic risk summary
 
 Update `DATA_PATH` in the script to point to your downloaded Lending Club file.
 
 ---
 
-### Step 2 — Load into Power BI
+### Step 2 - Load into Power BI
 
 1. Open **Power BI Desktop** → **Get Data** → **Text/CSV**
 2. Select `cleaned_lending_club.csv`
@@ -60,7 +60,7 @@ Update `DATA_PATH` in the script to point to your downloaded Lending Club file.
 
 ---
 
-### Step 3 — Create Date Table
+### Step 3 - Create Date Table
 
 In Power BI → **Table view** → **New table**, paste:
 ```dax
@@ -78,7 +78,7 @@ Then in **Model view**, drag `DateTable[Date]` → `lending_club[issue_d]`.
 
 ---
 
-### Step 4 — Add DAX Measures
+### Step 4 - Add DAX Measures
 
 1. Create a blank table: **Enter data** → name it `_Measures`
 2. Open `dax/dax_measures.dax`
@@ -95,7 +95,7 @@ Key measures to add first:
 
 ---
 
-### Step 5 — Build Dashboard Pages
+### Step 5 - Build Dashboard Pages
 
 #### Page 1: Executive Summary
 | Visual | Fields |
