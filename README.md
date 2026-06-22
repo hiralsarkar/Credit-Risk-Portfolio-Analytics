@@ -1,4 +1,4 @@
-# Lending Club — Credit Risk & Campaign Analytics
+# Lending Club - Credit Risk & Campaign Analytics
 ## Complete Power BI Project Package
 
 **Author:** Hiral Sarkar | MSc Global Financial Markets | PG Data Science & AI
