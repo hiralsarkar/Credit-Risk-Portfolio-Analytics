@@ -1,4 +1,4 @@
-# Lending Club — Credit Risk & Campaign Analytics
+# Lending Club - Credit Risk & Campaign Analytics
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)
 ![Power BI](https://img.shields.io/badge/Power%20BI-55%2B%20DAX%20Measures-F2C811?logo=powerbi&logoColor=black)
@@ -15,7 +15,7 @@
 
 ## [🔗 Live Interactive Dashboard →](https://hiralsarkar.github.io/Credit-Risk-Portfolio-Analytics/dashboard_mockup.html)
 
-> Dark-theme fintech analytics dashboard — 6 KPI cards, 9 interactive charts, state-level choropleth risk map, early warning watchlist table. Runs instantly in any browser, no install required.
+> Dark-theme fintech analytics dashboard - 6 KPI cards, 9 interactive charts, state-level choropleth risk map, early warning watchlist table. Runs instantly in any browser, no install required.
 
 ![Dashboard Hero](images/00_dashboard_hero.png)
 
@@ -25,7 +25,7 @@
 
 Credit risk analytics teams at lending institutions face three core challenges: **identifying borrowers likely to default before they do**, **segmenting the portfolio by risk tier for capital allocation**, and **targeting campaigns at the right customers to maximise response without increasing default exposure**.
 
-This project uses the public Lending Club dataset (100,000+ funded loans) to build a complete end-to-end risk analytics system — from raw data ingestion through EDA, feature engineering, SQL-based KPIs, a 55+ measure Power BI model, and a live interactive dashboard — demonstrating the full workflow a credit risk or model risk analyst executes in production.
+This project uses the public Lending Club dataset (100,000+ funded loans) to build a complete end-to-end risk analytics system - from raw data ingestion through EDA, feature engineering, SQL-based KPIs, a 50+ measure Power BI model, and a live interactive dashboard - demonstrating the full workflow a credit risk or model risk analyst executes in production.
 
 ---
 
