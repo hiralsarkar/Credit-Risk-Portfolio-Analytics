@@ -131,7 +131,7 @@ Key measures to add first:
 
 ---
 
-### Step 6 — SQL Queries (Optional — for BigQuery/Postgres)
+### Step 6 - SQL Queries (Optional — for BigQuery/Postgres)
 
 Import `cleaned_lending_club.csv` into your DB as table `lending_club`, then run queries from `sql/lending_club_queries.sql`.
 
@@ -161,7 +161,7 @@ Sections covered:
 
 ---
 
-## Resume Talking Points
+## Key Impact
 
 - **100,000+ records** cleaned, transformed, and modelled end-to-end
 - **EDA** surfaced risk drivers: grade, FICO, DTI, income, utilisation
